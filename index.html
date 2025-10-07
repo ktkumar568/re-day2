@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Re Protocol Quiz Challenge — Day 2</title>
+  <style>
+    :root{
+      --bg:#eafaf0;
+      --card:#ffffff;
+      --accent-1:#1e7f4c; /* deep green */
+      --accent-2:#6dd67a; /* light green */
+      --muted:#51656a;
+      --glass: rgba(255,255,255,0.6);
+      --shadow: 0 8px 24px rgba(16,24,32,0.12);
+      --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: radial-gradient(1200px 600px at 10% 10%, #e8fff0 0%, transparent 10%),
+                  radial-gradient(800px 400px at 90% 90%, #f0fff6 0%, transparent 10%),
+                  var(--bg);
+      color:#05312a;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      padding:32px;
+      display:flex;align-items:center;justify-content:center;min-height:100vh;
+    }
+
+    .container{width:100%;max-width:920px}
+
+    header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+    .logo{
+      width:72px;height:72px;border-radius:14px;background:linear-gradient(135deg,var(--accent-1),var(--accent-2));display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px;box-shadow:0 6px 18px rgba(30,127,76,0.22)
+    }
+    h1{margin:0;font-size:20px}
+    p.lead{margin:0;color:var(--muted)}
+
+    .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px}
+
+    .meta{display:flex;gap:12px;align-items:center;margin-bottom:16px}
+    .progress-wrap{flex:1}
+    .progress{height:10px;background:linear-gradient(90deg,#d6f4df 0%, #b8f0c7 100%);border-radius:999px;overflow:hidden}
+    .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent-1),var(--accent-2));width:0%;transition:width .4s ease}
+
+    .timer{min-width:140px;text-align:right;font-weight:600;color:var(--muted)}
+
+    .question{font-size:18px;margin:12px 0 18px}
+
+    .options{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .option{padding:12px;border-radius:12px;border:1px solid rgba(5,49,42,0.06);background:linear-gradient(180deg,rgba(237,255,245,0.8),rgba(255,255,255,0.6));cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
+    .option:hover{transform:translateY(-4px);box-shadow:0 8px 18px rgba(8,64,46,0.06)}
+    .option.disabled{cursor:default;opacity:0.88}
+
+    .option.correct{outline:3px solid rgba(34,197,94,0.18);background:#e9fff1}
+    .option.wrong{outline:3px solid rgba(239,68,68,0.08);background:#fff1f1}
+
+    footer.controls{display:flex;align-items:center;justify-content:space-between;margin-top:18px}
+    .btn{padding:10px 14px;border-radius:10px;background:linear-gradient(90deg,var(--accent-1),var(--accent-2));color:white;border:0;cursor:pointer;font-weight:600}
+    .btn.ghost{background:transparent;color:var(--accent-1);border:1px solid rgba(30,127,76,0.08)}
+
+    .small{font-size:13px;color:var(--muted)}
+
+    .result{display:none;padding:22px;border-radius:12px;text-align:center}
+    .result.show{display:block}
+    .score{font-weight:800;font-size:36px;margin:6px 0}
+
+    @media (max-width:720px){
+      .options{grid-template-columns:1fr}
+      header{gap:12px}
+      .timer{min-width:110px;font-size:14px}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">RE</div>
+      <div>
+        <h1>Re Protocol Quiz — Day 2</h1>
+        <p class="lead">Green theme · Colourful · 10 questions · Timer per question</p>
+      </div>
+    </header>
+
+    <div class="card" id="quizCard">
+
+      <div class="meta">
+        <div class="progress-wrap">
+          <div class="small">Question <span id="qIndex">1</span> of <span id="qTotal">10</span></div>
+          <div class="progress" style="margin-top:8px"><i id="progressBar"></i></div>
+        </div>
+        <div class="timer" id="timer">Time: <strong id="timeLeft">20</strong>s</div>
+      </div>
+
+      <div class="question" id="questionText">Loading...</div>
+
+      <div class="options" id="optionsWrap"></div>
+
+      <footer class="controls">
+        <div class="small">Auto-advance when timer hits 0. Correct answers highlighted in green.</div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button class="btn ghost" id="skipBtn">Skip</button>
+          <button class="btn" id="nextBtn">Next</button>
+        </div>
+      </footer>
+
+      <div class="result" id="resultBox" style="margin-top:18px">
+        <div class="small">Quiz Complete</div>
+        <div class="score" id="finalScore">0 / 10</div>
+        <div class="small" id="finalMsg">Nice try — check your answers and try again to improve!</div>
+        <div style="margin-top:12px"><button class="btn" id="restartBtn">Restart Quiz</button></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ======== Quiz data (10 questions from Re.xyz points page) ========
+    const QUESTIONS = [
+      {
+        q: "What must a user do in order to continue earning Re Points without interruption?",
+        options: [
+          "Transfer reUSD or reUSDe to another wallet daily",
+          "Hold reUSD or reUSDe continuously (no gaps)",
+          "Stake in a separate protocol every week",
+          "Trade reUSD for another token monthly"
+        ],
+        answer: 1
+      },
+      {
+        q: "What happens if there is a gap in holding reUSD or reUSDe?",
+        options: ["Points double","Points are frozen temporarily","Points reset to zero","Earning rate increases"],
+        answer: 2
+      },
+      {
+        q: "Under the Insurance Alpha or Basis-Plus campaigns, how many ⚡ (points) are earned daily for holding continuously?",
+        options: ["3× ⚡","5× ⚡","7× ⚡","10× ⚡"],
+        answer: 1
+      },
+      {
+        q: "If you hold reUSD or reUSDe and then provide liquidity (LP) on Pendle, what is the daily ⚡ earning rate?",
+        options: ["3× ⚡","6.5× ⚡","8× ⚡","10× ⚡"],
+        answer: 1
+      },
+      {
+        q: "What is the ⚡ earning rate when you provide LP (liquidity) on Pendle (LP for reUSD or reUSDe)?",
+        options: ["6× ⚡","8.5× ⚡","12× ⚡","15× ⚡"],
+        answer: 2
+      },
+      {
+        q: "On Curve, providing LP for reUSD : sUSDe yields which daily rewards?",
+        options: ["10× ⚡ + 10× Ethena sats","15× ⚡ + 20× Ethena sats","20× ⚡ + 30× Ethena sats","25× ⚡ only"],
+        answer: 2
+      },
+      {
+        q: "What is one way to earn points via social actions?",
+        options: ["Posting on TikTok","Following @re on X","Liking YouTube videos","Posting on Instagram"],
+        answer: 1
+      },
+      {
+        q: "What is the referral benefit described?",
+        options: ["Earn 2× points boost","Earn 1.5× point boost","Earn 1.06× point boost","Earn 10× points"],
+        answer: 2
+      },
+      {
+        q: "What kind of protocol is 'Blackhole' in this context?",
+        options: ["A lending protocol","A concentrated stable liquidity protocol","A perpetual futures protocol","A decentralized exchange"],
+        answer: 1
+      },
+      {
+        q: "If you use your reUSD as collateral in Morpho (borrowing), how many ⚡ do you earn daily?",
+        options: ["2× ⚡","5× ⚡","8× ⚡","10× ⚡"],
+        answer: 1
+      }
+    ];
+
+    // ======== Config ========
+    const TIME_PER_QUESTION = 20; // seconds (change to adjust timer)
+
+    // ======== State ========
+    let index = 0;
+    let score = 0;
+    let timer = null;
+    let timeLeft = TIME_PER_QUESTION;
+    let answered = false;
+
+    // ======== Elements ========
+    const qIndexEl = document.getElementById('qIndex');
+    const qTotalEl = document.getElementById('qTotal');
+    const progressBar = document.getElementById('progressBar');
+    const timerEl = document.getElementById('timeLeft');
+    const questionText = document.getElementById('questionText');
+    const optionsWrap = document.getElementById('optionsWrap');
+    const nextBtn = document.getElementById('nextBtn');
+    const skipBtn = document.getElementById('skipBtn');
+    const resultBox = document.getElementById('resultBox');
+    const finalScore = document.getElementById('finalScore');
+    const restartBtn = document.getElementById('restartBtn');
+
+    qTotalEl.textContent = QUESTIONS.length;
+
+    function startTimer(){
+      clearInterval(timer);
+      timeLeft = TIME_PER_QUESTION;
+      timerEl.textContent = timeLeft;
+      timer = setInterval(()=>{
+        timeLeft--;
+        timerEl.textContent = timeLeft;
+        if(timeLeft <= 0){
+          clearInterval(timer);
+          handleTimeout();
+        }
+      },1000);
+    }
+
+    function handleTimeout(){
+      // auto-reveal correct answer, mark incorrect if unanswered
+      if(!answered){
+        revealCorrect();
+      }
+      // small delay then advance
+      setTimeout(()=>{
+        goNext();
+      }, 1200);
+    }
+
+    function revealCorrect(){
+      const current = QUESTIONS[index];
+      const optionEls = optionsWrap.querySelectorAll('.option');
+      optionEls.forEach((el,i)=>{
+        el.classList.add('disabled');
+        if(i === current.answer){
+          el.classList.add('correct');
+        }
+      });
+      answered = true;
+    }
+
+    function renderQuestion(){
+      answered = false;
+      qIndexEl.textContent = index+1;
+      const current = QUESTIONS[index];
+      questionText.textContent = current.q;
+      optionsWrap.innerHTML = '';
+      current.options.forEach((opt,i)=>{
+        const btn = document.createElement('button');
+        btn.className = 'option';
+        btn.type = 'button';
+        btn.innerHTML = `<div style=\"font-size:14px;font-weight:600;margin-bottom:6px\">${String.fromCharCode(65+i)}.</div><div style=\"font-size:14px;line-height:1.15;color:var(--muted)\">${opt}</div>`;
+        btn.addEventListener('click', ()=> selectOption(i, btn));
+        optionsWrap.appendChild(btn);
+      });
+      // progress
+      const pct = Math.round(((index)/QUESTIONS.length) * 100);
+      progressBar.style.width = pct + '%';
+      // restart timer
+      startTimer();
+    }
+
+    function selectOption(i, el){
+      if(answered) return;
+      answered = true;
+      clearInterval(timer);
+      const current = QUESTIONS[index];
+      const optionEls = optionsWrap.querySelectorAll('.option');
+      optionEls.forEach((o,idx)=>{
+        o.classList.add('disabled');
+        if(idx === current.answer){ o.classList.add('correct'); }
+        if(idx === i && idx !== current.answer){ o.classList.add('wrong'); }
+      });
+      if(i === current.answer){ score++; }
+    }
+
+    function goNext(){
+      if(index < QUESTIONS.length - 1){
+        index++;
+        renderQuestion();
+      } else {
+        showResult();
+      }
+    }
+
+    function showResult(){
+      clearInterval(timer);
+      document.getElementById('progressBar').style.width = '100%';
+      resultBox.classList.add('show');
+      finalScore.textContent = `${score} / ${QUESTIONS.length}`;
+      const msg = (score === QUESTIONS.length) ? 'Perfect score — amazing!' : (score >= Math.ceil(QUESTIONS.length*0.7)) ? 'Great work — you know Re well!' : 'Nice try — study the Re points page and try again.';
+      document.getElementById('finalMsg').textContent = msg;
+      // hide controls
+      document.querySelector('.controls').style.display = 'none';
+    }
+
+    // ====== Buttons ======
+    nextBtn.addEventListener('click', ()=>{
+      // if user didn't answer, treat as skip
+      if(!answered){
+        revealCorrect();
+        setTimeout(()=> goNext(),700);
+      } else {
+        goNext();
+      }
+    });
+    skipBtn.addEventListener('click', ()=>{
+      clearInterval(timer);
+      revealCorrect();
+      setTimeout(()=> goNext(),700);
+    });
+    restartBtn.addEventListener('click', ()=>{
+      index = 0; score = 0; resultBox.classList.remove('show'); document.querySelector('.controls').style.display = 'flex'; renderQuestion();
+    });
+
+    // initial render
+    renderQuestion();
+  </script>
+</body>
+</html>
